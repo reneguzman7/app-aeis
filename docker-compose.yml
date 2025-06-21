@@ -1,0 +1,56 @@
+services:
+  # Servicio principal de la aplicación (monolito)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: aeis-app:latest
+    container_name: aeis-app
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      # Variables de Supabase (usar .env o configurar desde archivo)
+      - SUPABASE_URL=${SUPABASE_URL:-https://blmvfknjszsonaebstwi.supabase.co}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsbXZma25qc3pzb25hZWJzdHdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5NDU0NTAsImV4cCI6MjA2NTUyMTQ1MH0.FcENuiMsLjEkRpe6tbEVe4xHpLmOCdOj4dRVeUPI_QI}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+    volumes:
+      # Volumen para logs (opcional)
+      - ./logs:/app/logs
+    networks:
+      - aeis-network
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:4000/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx para servir archivos estáticos y proxy (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: aeis-nginx
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - aeis-network
+    profiles:
+      - nginx # Solo se ejecuta si se especifica: docker-compose --profile nginx up
+
+networks:
+  aeis-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
