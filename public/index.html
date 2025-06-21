@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEIS - Gestión de Casilleros</title>
+    <link rel="stylesheet" href="styles.css">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Interfaz web que consume la API TypeScript
+        const App = () => {
+            const [bloques, setBloques] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [showCreateForm, setShowCreateForm] = useState(false);            // API real conectada al backend TypeScript
+            const api = {
+                async getBloques() {
+                    try {
+                        const response = await fetch('/api/bloques');
+                        return await response.json();
+                    } catch (error) {
+                        console.error('Error llamando getBloques:', error);
+                        return { success: false, error: 'Error de conexión' };
+                    }
+                },
+                
+                async createBloque(data) {
+                    try {
+                        const response = await fetch('/api/bloques', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        return await response.json();
+                    } catch (error) {
+                        console.error('Error llamando createBloque:', error);
+                        return { success: false, error: 'Error de conexión' };
+                    }
+                },
+                
+                async deleteBloque(id) {
+                    try {
+                        const response = await fetch(`/api/bloques/${id}`, {
+                            method: 'DELETE'
+                        });
+                        return await response.json();
+                    } catch (error) {
+                        console.error('Error llamando deleteBloque:', error);
+                        return { success: false, error: 'Error de conexión' };
+                    }
+                }
+            };
+
+            const loadBloques = async () => {
+                setLoading(true);
+                try {
+                    const result = await api.getBloques();
+                    if (result.success) {
+                        setBloques(result.data || []);
+                    } else {
+                        setError(result.error || 'Error desconocido');
+                    }
+                } catch (err) {
+                    setError('Error de conexión');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                loadBloques();
+            }, []);
+
+            const CreateForm = () => {
+                const [formData, setFormData] = useState({
+                    nombre: '',
+                    filas: 3,
+                    columnas: 5
+                });
+
+                const handleSubmit = async (e) => {
+                    e.preventDefault();
+                    setLoading(true);
+                    
+                    try {
+                        const result = await api.createBloque(formData);
+                        if (result.success) {
+                            setBloques(prev => [...prev, result.data]);
+                            setShowCreateForm(false);
+                            setFormData({ nombre: '', filas: 3, columnas: 5 });
+                        } else {
+                            setError(result.error || 'Error creando bloque');
+                        }
+                    } catch (err) {
+                        setError('Error de conexión');
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                return React.createElement('div', { className: 'modal-overlay' },
+                    React.createElement('div', { className: 'modal' },
+                        React.createElement('h3', null, 'Crear Nuevo Bloque'),
+                        React.createElement('form', { onSubmit: handleSubmit },
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', null, 'Nombre del Bloque:'),
+                                React.createElement('input', {
+                                    type: 'text',
+                                    value: formData.nombre,
+                                    onChange: (e) => setFormData(prev => ({ ...prev, nombre: e.target.value })),
+                                    placeholder: 'Ej: Bloque A',
+                                    required: true
+                                })
+                            ),
+                            React.createElement('div', { style: { display: 'flex', gap: '1rem' } },
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', null, 'Filas:'),
+                                    React.createElement('input', {
+                                        type: 'number',
+                                        min: 1,
+                                        max: 10,
+                                        value: formData.filas,
+                                        onChange: (e) => setFormData(prev => ({ ...prev, filas: parseInt(e.target.value) }))
+                                    })
+                                ),
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', null, 'Columnas:'),
+                                    React.createElement('input', {
+                                        type: 'number',
+                                        min: 1,
+                                        max: 15,
+                                        value: formData.columnas,
+                                        onChange: (e) => setFormData(prev => ({ ...prev, columnas: parseInt(e.target.value) }))
+                                    })
+                                )
+                            ),
+                            React.createElement('div', { style: { display: 'flex', gap: '1rem', marginTop: '1rem' } },
+                                React.createElement('button', { 
+                                    type: 'submit', 
+                                    className: 'btn btn-primary',
+                                    disabled: loading 
+                                }, loading ? 'Creando...' : 'Crear'),
+                                React.createElement('button', { 
+                                    type: 'button', 
+                                    className: 'btn btn-secondary',
+                                    onClick: () => setShowCreateForm(false) 
+                                }, 'Cancelar')
+                            )
+                        )
+                    )
+                );
+            };
+
+            return React.createElement('div', { className: 'container' },
+                // Header
+                React.createElement('header', { className: 'header' },
+                    React.createElement('h1', null, 'AEIS - Gestión de Casilleros v2.0'),
+                    React.createElement('p', null, 'Arquitectura TypeScript modular con API estructurada'),
+                    React.createElement('div', { style: { marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 } },
+                        React.createElement('span', null, '🏗️ Backend: TypeScript + Supabase'),
+                        React.createElement('span', { style: { marginLeft: '1rem' } }, '🎨 Frontend: React'),
+                        React.createElement('span', { style: { marginLeft: '1rem' } }, '🧪 Tests: Jest')
+                    )
+                ),
+
+                // Error message
+                error && React.createElement('div', { className: 'error-alert' },
+                    error,
+                    React.createElement('button', { onClick: () => setError('') }, '×')
+                ),
+
+                // Loading
+                loading && React.createElement('div', { className: 'loading' }, 'Cargando...'),
+
+                // API Status
+                React.createElement('div', { className: 'card' },
+                    React.createElement('h3', null, '🔌 Estado de la API TypeScript'),
+                    React.createElement('p', null, 'La interfaz web está lista para conectarse con:'),
+                    React.createElement('ul', { style: { marginTop: '0.5rem', paddingLeft: '1.5rem' } },
+                        React.createElement('li', null, '📁 src/app.controller.ts - Controlador principal'),
+                        React.createElement('li', null, '🛠️ src/app.service.ts - Lógica de negocio'),
+                        React.createElement('li', null, '📦 src/app.module.ts - Configuración y módulos'),
+                        React.createElement('li', null, '🚀 src/main.ts - Punto de entrada')
+                    ),
+                    React.createElement('div', { style: { marginTop: '1rem' } },
+                        React.createElement('code', { style: { 
+                            background: '#f1f5f9', 
+                            padding: '0.5rem 1rem', 
+                            borderRadius: '4px',
+                            display: 'block',
+                            fontSize: '0.85rem'
+                        } }, 'npm run start:dev  # Para iniciar la API TypeScript')
+                    )
+                ),
+
+                // Actions
+                React.createElement('div', { className: 'actions' },
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: () => setShowCreateForm(true),
+                        disabled: loading
+                    }, '+ Nuevo Bloque'),
+                    React.createElement('button', {
+                        className: 'btn btn-outline',
+                        onClick: loadBloques,
+                        disabled: loading
+                    }, '🔄 Actualizar')
+                ),
+
+                // Demo content
+                React.createElement('div', { className: 'bloques-grid' },
+                    React.createElement('div', { className: 'card' },
+                        React.createElement('h3', null, '📋 Vista previa de funcionalidad'),
+                        React.createElement('p', null, 'Una vez que inicies la API TypeScript, aquí se mostrarán:'),
+                        React.createElement('ul', { style: { marginTop: '0.5rem', paddingLeft: '1.5rem' } },
+                            React.createElement('li', null, 'Lista de bloques desde la base de datos'),
+                            React.createElement('li', null, 'Grid visual de casilleros por bloque'),
+                            React.createElement('li', null, 'Estados en tiempo real (Disponible/Ocupado/Averiado)'),
+                            React.createElement('li', null, 'Operaciones CRUD completas')
+                        )
+                    ),
+                    
+                    bloques.length > 0 && bloques.map(bloque =>
+                        React.createElement('div', { key: bloque.id, className: 'card' },
+                            React.createElement('div', { className: 'card-header' },
+                                React.createElement('h3', null, bloque.nombre_bloque || bloque.nombre),
+                                React.createElement('button', {
+                                    className: 'btn btn-danger btn-sm',
+                                    onClick: async () => {
+                                        if (confirm('¿Eliminar este bloque?')) {
+                                            const result = await api.deleteBloque(bloque.id);
+                                            if (result.success) {
+                                                setBloques(prev => prev.filter(b => b.id !== bloque.id));
+                                            }
+                                        }
+                                    }
+                                }, '🗑️')
+                            ),
+                            React.createElement('p', null, `Filas: ${bloque.nro_filas || bloque.filas}, Columnas: ${bloque.nro_columnas || bloque.columnas}`)
+                        )
+                    )
+                ),
+
+                // Empty state
+                !loading && bloques.length === 0 && React.createElement('div', { className: 'empty-state' },
+                    React.createElement('h3', null, '🚀 ¡Todo listo para usar!'),
+                    React.createElement('p', null, 'La interfaz está preparada. Inicia la API TypeScript para ver los datos reales.'),
+                    React.createElement('div', { style: { marginTop: '1rem' } },
+                        React.createElement('button', {
+                            className: 'btn btn-primary',
+                            onClick: () => setShowCreateForm(true)
+                        }, 'Probar Crear Bloque (Demo)')
+                    )
+                ),
+
+                // Create form modal
+                showCreateForm && React.createElement(CreateForm)
+            );
+        };
+
+        // Renderizar aplicación
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
+
+        // ==================== SERVICIOS (app.service.ts) ====================
+        class AppService {
+            // Servicio principal para gestión de casilleros
+            
+            async getAllBloques() {
+                try {
+                    const { data, error } = await supabase
+                        .from('bloques')
+                        .select('*, casilleros (*)');
+                    
+                    if (error) throw error;
+                    return data || [];
+                } catch (error) {
+                    console.error('Error obteniendo bloques:', error);
+                    throw error;
+                }
+            }
+
+            async createBloque(nombre, filas, columnas) {
+                try {
+                    // Crear bloque
+                    const { data: bloque, error: bloqueError } = await supabase
+                        .from('bloques')
+                        .insert({
+                            nombre_bloque: nombre,
+                            nro_filas: filas,
+                            nro_columnas: columnas
+                        })
+                        .select()
+                        .single();
+
+                    if (bloqueError) throw bloqueError;
+
+                    // Generar casilleros automáticamente
+                    const casilleros = [];
+                    for (let fila = 1; fila <= filas; fila++) {
+                        for (let col = 1; col <= columnas; col++) {
+                            casilleros.push({
+                                numero_casillero: `${nombre}-${fila}-${col}`,
+                                estado: 'Disponible',
+                                bloque_id: bloque.id
+                            });
+                        }
+                    }
+
+                    const { error: casillerosError } = await supabase
+                        .from('casilleros')
+                        .insert(casilleros);
+
+                    if (casillerosError) throw casillerosError;
+
+                    return bloque;
+                } catch (error) {
+                    console.error('Error creando bloque:', error);
+                    throw error;
+                }
+            }
+
+            async updateEstadoCasillero(idCasillero, nuevoEstado) {
+                try {
+                    const { error } = await supabase
+                        .from('casilleros')
+                        .update({ estado: nuevoEstado })
+                        .eq('id_casillero', idCasillero);
+
+                    if (error) throw error;
+                } catch (error) {
+                    console.error('Error actualizando casillero:', error);
+                    throw error;
+                }
+            }
+
+            async deleteBloque(idBloque) {
+                try {
+                    const { error } = await supabase
+                        .from('bloques')
+                        .delete()
+                        .eq('id', idBloque);
+
+                    if (error) throw error;
+                } catch (error) {
+                    console.error('Error eliminando bloque:', error);
+                    throw error;
+                }
+            }
+        }
+
+        // ==================== CONTEXTOS (app.module.ts) ====================
+        const AppContext = createContext();
+
+        const AppProvider = ({ children }) => {
+            const [bloques, setBloques] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [appService] = useState(new AppService());
+
+            const loadBloques = async () => {
+                try {
+                    setLoading(true);
+                    setError('');
+                    const data = await appService.getAllBloques();
+                    setBloques(data);
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const createBloque = async (nombre, filas, columnas) => {
+                try {
+                    setLoading(true);
+                    await appService.createBloque(nombre, filas, columnas);
+                    await loadBloques();
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const updateCasillero = async (id, estado) => {
+                try {
+                    setLoading(true);
+                    await appService.updateEstadoCasillero(id, estado);
+                    await loadBloques();
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const deleteBloque = async (id) => {
+                try {
+                    setLoading(true);
+                    await appService.deleteBloque(id);
+                    await loadBloques();
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const clearError = () => setError('');
+
+            return React.createElement(AppContext.Provider, {
+                value: {
+                    bloques,
+                    loading,
+                    error,
+                    loadBloques,
+                    createBloque,
+                    updateCasillero,
+                    deleteBloque,
+                    clearError
+                }
+            }, children);
+        };
+
+        const useApp = () => {
+            const context = useContext(AppContext);
+            if (!context) {
+                throw new Error('useApp debe usarse dentro de AppProvider');
+            }
+            return context;
+        };
+
+        // ==================== CONTROLADOR/COMPONENTES (app.controller.ts) ====================
+        
+        // Componente para crear bloque
+        const CreateBloqueForm = ({ onClose }) => {
+            const { createBloque } = useApp();
+            const [formData, setFormData] = useState({
+                nombre: '',
+                filas: 3,
+                columnas: 5
+            });
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!formData.nombre.trim()) {
+                    alert('El nombre del bloque es requerido');
+                    return;
+                }
+                await createBloque(formData.nombre, formData.filas, formData.columnas);
+                onClose();
+            };
+
+            return React.createElement('div', { className: 'modal-overlay' },
+                React.createElement('div', { className: 'modal' },
+                    React.createElement('h3', null, 'Crear Nuevo Bloque'),
+                    React.createElement('form', { onSubmit: handleSubmit },
+                        React.createElement('div', { className: 'form-group' },
+                            React.createElement('label', null, 'Nombre del Bloque:'),
+                            React.createElement('input', {
+                                type: 'text',
+                                value: formData.nombre,
+                                onChange: (e) => setFormData(prev => ({ ...prev, nombre: e.target.value })),
+                                placeholder: 'Ej: Bloque A'
+                            })
+                        ),
+                        React.createElement('div', { style: { display: 'flex', gap: '1rem' } },
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', null, 'Filas:'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    min: 1,
+                                    max: 10,
+                                    value: formData.filas,
+                                    onChange: (e) => setFormData(prev => ({ ...prev, filas: parseInt(e.target.value) }))
+                                })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', null, 'Columnas:'),
+                                React.createElement('input', {
+                                    type: 'number',
+                                    min: 1,
+                                    max: 15,
+                                    value: formData.columnas,
+                                    onChange: (e) => setFormData(prev => ({ ...prev, columnas: parseInt(e.target.value) }))
+                                })
+                            )
+                        ),
+                        React.createElement('div', { style: { display: 'flex', gap: '1rem', marginTop: '1rem' } },
+                            React.createElement('button', { type: 'submit', className: 'btn btn-primary' }, 'Crear'),
+                            React.createElement('button', { 
+                                type: 'button', 
+                                className: 'btn btn-secondary',
+                                onClick: onClose 
+                            }, 'Cancelar')
+                        )
+                    )
+                )
+            );
+        };
+
+        // Componente para mostrar casilleros de un bloque
+        const CasillerosGrid = ({ bloque }) => {
+            const { updateCasillero } = useApp();
+            const [selectedCasillero, setSelectedCasillero] = useState(null);
+
+            const handleCasilleroClick = (casillero) => {
+                setSelectedCasillero(casillero);
+            };
+
+            const handleEstadoChange = async (nuevoEstado) => {
+                if (selectedCasillero) {
+                    await updateCasillero(selectedCasillero.id_casillero, nuevoEstado);
+                    setSelectedCasillero(null);
+                }
+            };
+
+            const groupCasillerosByRow = () => {
+                const filas = {};
+                bloque.casilleros.forEach(casillero => {
+                    const match = casillero.numero_casillero.match(/-(\d+)-/);
+                    const fila = match ? parseInt(match[1]) : 1;
+                    if (!filas[fila]) filas[fila] = [];
+                    filas[fila].push(casillero);
+                });
+                return filas;
+            };
+
+            const filas = groupCasillerosByRow();
+
+            return React.createElement('div', { className: 'casilleros-container' },
+                React.createElement('h4', null, bloque.nombre_bloque),
+                React.createElement('div', { className: 'casilleros-grid' },
+                    Object.keys(filas).sort((a, b) => a - b).map(numFila => 
+                        React.createElement('div', { key: numFila, className: 'fila' },
+                            filas[numFila].sort((a, b) => {
+                                const aCol = parseInt(a.numero_casillero.split('-')[2]);
+                                const bCol = parseInt(b.numero_casillero.split('-')[2]);
+                                return aCol - bCol;
+                            }).map(casillero =>
+                                React.createElement('div', {
+                                    key: casillero.id_casillero,
+                                    className: `casillero casillero-${casillero.estado.toLowerCase()}`,
+                                    onClick: () => handleCasilleroClick(casillero),
+                                    title: `${casillero.numero_casillero} - ${casillero.estado}`
+                                }, casillero.numero_casillero.split('-')[2])
+                            )
+                        )
+                    )
+                ),
+                
+                // Modal para cambiar estado
+                selectedCasillero && React.createElement('div', { className: 'modal-overlay' },
+                    React.createElement('div', { className: 'modal' },
+                        React.createElement('h3', null, `Casillero ${selectedCasillero.numero_casillero}`),
+                        React.createElement('p', null, `Estado actual: ${selectedCasillero.estado}`),
+                        React.createElement('div', { style: { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } },
+                            React.createElement('button', {
+                                className: 'btn btn-success',
+                                onClick: () => handleEstadoChange('Disponible')
+                            }, 'Disponible'),
+                            React.createElement('button', {
+                                className: 'btn btn-danger',
+                                onClick: () => handleEstadoChange('Ocupado')
+                            }, 'Ocupado'),
+                            React.createElement('button', {
+                                className: 'btn',
+                                onClick: () => handleEstadoChange('Averiado'),
+                                style: { backgroundColor: '#d97706' }
+                            }, 'Averiado')
+                        ),
+                        React.createElement('div', { style: { marginTop: '1rem' } },
+                            React.createElement('button', { 
+                                className: 'btn btn-outline', 
+                                onClick: () => setSelectedCasillero(null) 
+                            }, 'Cerrar')
+                        )
+                    )
+                )
+            );
+        };
+
+        // Componente principal de administración
+        const Dashboard = () => {
+            const { bloques, loading, error, loadBloques, deleteBloque, clearError } = useApp();
+            const [showCreateForm, setShowCreateForm] = useState(false);
+
+            useEffect(() => {
+                loadBloques();
+            }, []);
+
+            const handleDeleteBloque = async (bloque) => {
+                if (confirm(`¿Estás seguro de eliminar el bloque "${bloque.nombre_bloque}"?`)) {
+                    await deleteBloque(bloque.id);
+                }
+            };
+
+            return React.createElement('div', { className: 'container' },
+                // Header
+                React.createElement('header', { className: 'header' },
+                    React.createElement('h1', null, 'AEIS - Gestión de Casilleros'),
+                    React.createElement('p', null, 'Sistema simplificado para administrar bloques y casilleros')
+                ),
+
+                // Error message
+                error && React.createElement('div', { className: 'error-alert' },
+                    error,
+                    React.createElement('button', { onClick: clearError }, '×')
+                ),
+
+                // Loading
+                loading && React.createElement('div', { className: 'loading' }, 'Cargando...'),
+
+                // Actions
+                React.createElement('div', { className: 'actions' },
+                    React.createElement('button', {
+                        className: 'btn btn-primary',
+                        onClick: () => setShowCreateForm(true),
+                        disabled: loading
+                    }, '+ Nuevo Bloque'),
+                    React.createElement('button', {
+                        className: 'btn btn-outline',
+                        onClick: loadBloques,
+                        disabled: loading
+                    }, '🔄 Actualizar')
+                ),
+
+                // Bloques list
+                React.createElement('div', { className: 'bloques-grid' },
+                    bloques.map(bloque =>
+                        React.createElement('div', { key: bloque.id, className: 'card' },
+                            React.createElement('div', { className: 'card-header' },
+                                React.createElement('h3', null, bloque.nombre_bloque),
+                                React.createElement('button', {
+                                    className: 'btn btn-danger btn-sm',
+                                    onClick: () => handleDeleteBloque(bloque)
+                                }, '🗑️')
+                            ),
+                            React.createElement(CasillerosGrid, { bloque })
+                        )
+                    )
+                ),
+
+                // Empty state
+                !loading && bloques.length === 0 && React.createElement('div', { className: 'empty-state' },
+                    React.createElement('h3', null, 'No hay bloques registrados'),
+                    React.createElement('p', null, 'Crea tu primer bloque de casilleros')
+                ),
+
+                // Create form modal
+                showCreateForm && React.createElement(CreateBloqueForm, {
+                    onClose: () => setShowCreateForm(false)
+                })
+            );
+        };
+
+        // ==================== APLICACIÓN PRINCIPAL (main.ts) ====================
+        const App = () => {
+            return React.createElement(AppProvider, null,
+                React.createElement(Dashboard)
+            );
+        };
+
+        // Renderizar aplicación
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
+
+                    const casilleros = [];
+                    for (let i = 1; i <= filas * columnas; i++) {
+                        casilleros.push({
+                            numero: i,
+                            ancho: 30.0,
+                            profundidad: 40.0,
+                            altura: 35.0,
+                            id_bloque: bloque.id_bloque,
+                            estado: 'Disponible'
+                        });
+                    }
+
+                    const { data: casillerosCreados, error: casillerosError } = await supabase
+                        .from('casilleros')
+                        .insert(casilleros)
+                        .select();
+
+                    if (casillerosError) throw casillerosError;
+                    return { ...bloque, casilleros: casillerosCreados };
+                } catch (error) {
+                    console.error('Error creando bloque:', error);
+                    throw error;
+                }
+            }
+
+            async updateCasilleroEstado(id, estado) {
+                try {
+                    const { data, error } = await supabase
+                        .from('casilleros')
+                        .update({ estado })
+                        .eq('id_casillero', id)
+                        .select()
+                        .single();
+
+                    if (error) throw error;
+                    return data;
+                } catch (error) {
+                    console.error('Error actualizando casillero:', error);
+                    throw error;
+                }
+            }
+
+            async deleteBloque(id) {
+                try {
+                    const { error } = await supabase
+                        .from('bloques')
+                        .delete()
+                        .eq('id_bloque', id);
+
+                    if (error) throw error;
+                    return true;
+                } catch (error) {
+                    console.error('Error eliminando bloque:', error);
+                    throw error;
+                }
+            }
+        }
+
+        const appService = new AppService();
+
+        // Componente principal
+        function App() {
+            const [bloques, setBloques] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [error, setError] = React.useState(null);
+            const [showCreateModal, setShowCreateModal] = React.useState(false);
+            const [selectedCasillero, setSelectedCasillero] = React.useState(null);
+
+            React.useEffect(() => {
+                loadBloques();
+            }, []);
+
+            const loadBloques = async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    const data = await appService.getAllBloques();
+                    setBloques(data);
+                } catch (err) {
+                    setError('Error cargando los bloques: ' + err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleCreateBloque = async (nombre, filas, columnas) => {
+                try {
+                    await appService.createBloque(nombre, filas, columnas);
+                    await loadBloques();
+                    setShowCreateModal(false);
+                } catch (err) {
+                    setError('Error creando bloque: ' + err.message);
+                }
+            };
+
+            const handleUpdateCasillero = async (id, estado) => {
+                try {
+                    await appService.updateCasilleroEstado(id, estado);
+                    await loadBloques();
+                    setSelectedCasillero(null);
+                } catch (err) {
+                    setError('Error actualizando casillero: ' + err.message);
+                }
+            };
+
+            const handleDeleteBloque = async (id) => {
+                if (confirm('¿Estás seguro de eliminar este bloque?')) {
+                    try {
+                        await appService.deleteBloque(id);
+                        await loadBloques();
+                    } catch (err) {
+                        setError('Error eliminando bloque: ' + err.message);
+                    }
+                }
+            };
+
+            const stats = React.useMemo(() => {
+                const totalCasilleros = bloques.reduce((sum, bloque) => sum + (bloque.casilleros?.length || 0), 0);
+                const disponibles = bloques.reduce((sum, bloque) => 
+                    sum + (bloque.casilleros?.filter(c => c.estado === 'Disponible').length || 0), 0);
+                const ocupados = bloques.reduce((sum, bloque) => 
+                    sum + (bloque.casilleros?.filter(c => c.estado === 'Ocupado').length || 0), 0);
+                const averiados = bloques.reduce((sum, bloque) => 
+                    sum + (bloque.casilleros?.filter(c => c.estado === 'Averiado').length || 0), 0);
+
+                return { totalCasilleros, disponibles, ocupados, averiados };
+            }, [bloques]);
+
+            if (loading) {
+                return React.createElement('div', {className: 'container'}, 
+                    React.createElement('div', {className: 'loading'}, 
+                        React.createElement('h2', null, 'Cargando...')
+                    )
+                );
+            }
+
+            return React.createElement('div', null,
+                React.createElement('header', {className: 'header'},
+                    React.createElement('h1', null, 'AEIS - Gestión de Casilleros'),
+                    React.createElement('p', null, 'Sistema de administración de casilleros institucionales')
+                ),
+                React.createElement('div', {className: 'container'},
+                    error && React.createElement('div', {className: 'error'},
+                        error,
+                        React.createElement('button', {
+                            onClick: () => setError(null),
+                            style: {float: 'right'}
+                        }, '×')
+                    ),
+                    React.createElement('div', {className: 'stats-grid'},
+                        React.createElement('div', {className: 'stat-card'},
+                            React.createElement('div', {className: 'stat-number'}, stats.totalCasilleros),
+                            React.createElement('div', {className: 'stat-label'}, 'Total Casilleros')
+                        ),
+                        React.createElement('div', {className: 'stat-card'},
+                            React.createElement('div', {className: 'stat-number'}, stats.disponibles),
+                            React.createElement('div', {className: 'stat-label'}, 'Disponibles')
+                        ),
+                        React.createElement('div', {className: 'stat-card'},
+                            React.createElement('div', {className: 'stat-number'}, stats.ocupados),
+                            React.createElement('div', {className: 'stat-label'}, 'Ocupados')
+                        ),
+                        React.createElement('div', {className: 'stat-card'},
+                            React.createElement('div', {className: 'stat-number'}, stats.averiados),
+                            React.createElement('div', {className: 'stat-label'}, 'Averiados')
+                        )
+                    ),
+                    React.createElement('div', {className: 'card'},
+                        React.createElement('h2', null, 'Acciones'),
+                        React.createElement('button', {
+                            className: 'btn btn-success',
+                            onClick: () => setShowCreateModal(true)
+                        }, 'Crear Nuevo Bloque'),
+                        React.createElement('button', {
+                            className: 'btn btn-outline',
+                            onClick: loadBloques
+                        }, 'Actualizar')
+                    ),
+                    bloques.map(bloque => 
+                        React.createElement(BloqueCard, {
+                            key: bloque.id_bloque,
+                            bloque: bloque,
+                            onCasilleroClick: setSelectedCasillero,
+                            onDeleteBloque: handleDeleteBloque
+                        })
+                    ),
+                    bloques.length === 0 && React.createElement('div', {className: 'card'},
+                        React.createElement('h2', null, 'No hay bloques'),
+                        React.createElement('p', null, 'Crea tu primer bloque para comenzar.')
+                    )
+                ),
+                showCreateModal && React.createElement(CreateBloqueModal, {
+                    onClose: () => setShowCreateModal(false),
+                    onSubmit: handleCreateBloque
+                }),
+                selectedCasillero && React.createElement(CasilleroModal, {
+                    casillero: selectedCasillero,
+                    onClose: () => setSelectedCasillero(null),
+                    onUpdateEstado: handleUpdateCasillero
+                })
+            );
+        }
+
+        function BloqueCard({ bloque, onCasilleroClick, onDeleteBloque }) {
+            return React.createElement('div', {className: 'card'},
+                React.createElement('div', {style: {display: 'flex', justifyContent: 'space-between', alignItems: 'center'}},
+                    React.createElement('h2', null, bloque.nombre_bloque),
+                    React.createElement('button', {
+                        className: 'btn btn-danger',
+                        onClick: () => onDeleteBloque(bloque.id_bloque)
+                    }, 'Eliminar')
+                ),
+                React.createElement('p', null, `Filas: ${bloque.nro_filas} | Columnas: ${bloque.nro_columnas}`),
+                React.createElement('p', null, `Total casilleros: ${bloque.casilleros?.length || 0}`),
+                React.createElement('div', {className: 'casilleros-grid'},
+                    bloque.casilleros?.map(casillero =>
+                        React.createElement('div', {
+                            key: casillero.id_casillero,
+                            className: `casillero ${casillero.estado.toLowerCase()}`,
+                            onClick: () => onCasilleroClick(casillero),
+                            title: `Casillero ${casillero.numero} - ${casillero.estado}`
+                        }, casillero.numero)
+                    )
+                )
+            );
+        }
+
+        function CreateBloqueModal({ onClose, onSubmit }) {
+            const [nombre, setNombre] = React.useState('');
+            const [filas, setFilas] = React.useState(3);
+            const [columnas, setColumnas] = React.useState(5);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (nombre.trim()) {
+                    onSubmit(nombre.trim(), filas, columnas);
+                }
+            };
+
+            return React.createElement('div', {className: 'modal-overlay', onClick: onClose},
+                React.createElement('div', {className: 'modal', onClick: e => e.stopPropagation()},
+                    React.createElement('h3', null, 'Crear Nuevo Bloque'),
+                    React.createElement('form', {onSubmit: handleSubmit},
+                        React.createElement('div', {className: 'form-group'},
+                            React.createElement('label', {className: 'form-label'}, 'Nombre del Bloque'),
+                            React.createElement('input', {
+                                type: 'text',
+                                className: 'form-input',
+                                value: nombre,
+                                onChange: e => setNombre(e.target.value),
+                                placeholder: 'Ej: Bloque A',
+                                required: true
+                            })
+                        ),
+                        React.createElement('div', {className: 'form-group'},
+                            React.createElement('label', {className: 'form-label'}, 'Número de Filas'),
+                            React.createElement('input', {
+                                type: 'number',
+                                className: 'form-input',
+                                value: filas,
+                                onChange: e => setFilas(parseInt(e.target.value)),
+                                min: 1,
+                                max: 10,
+                                required: true
+                            })
+                        ),
+                        React.createElement('div', {className: 'form-group'},
+                            React.createElement('label', {className: 'form-label'}, 'Número de Columnas'),
+                            React.createElement('input', {
+                                type: 'number',
+                                className: 'form-input',
+                                value: columnas,
+                                onChange: e => setColumnas(parseInt(e.target.value)),
+                                min: 1,
+                                max: 20,
+                                required: true
+                            })
+                        ),
+                        React.createElement('p', null, `Total de casilleros: ${filas * columnas}`),
+                        React.createElement('div', {style: {marginTop: '1rem'}},
+                            React.createElement('button', {type: 'submit', className: 'btn btn-success'}, 'Crear Bloque'),
+                            React.createElement('button', {type: 'button', className: 'btn btn-outline', onClick: onClose}, 'Cancelar')
+                        )
+                    )
+                )
+            );
+        }
+
+        function CasilleroModal({ casillero, onClose, onUpdateEstado }) {
+            return React.createElement('div', {className: 'modal-overlay', onClick: onClose},
+                React.createElement('div', {className: 'modal', onClick: e => e.stopPropagation()},
+                    React.createElement('h3', null, `Casillero #${casillero.numero}`),
+                    React.createElement('p', null, React.createElement('strong', null, 'Estado actual: '), casillero.estado),
+                    React.createElement('p', null, React.createElement('strong', null, 'Dimensiones: '), `${casillero.ancho} x ${casillero.profundidad} x ${casillero.altura} cm`),
+                    React.createElement('h4', null, 'Cambiar Estado:'),
+                    React.createElement('div', {style: {marginTop: '1rem'}},
+                        React.createElement('button', {
+                            className: 'btn btn-success',
+                            onClick: () => onUpdateEstado(casillero.id_casillero, 'Disponible')
+                        }, 'Disponible'),
+                        React.createElement('button', {
+                            className: 'btn btn-danger',
+                            onClick: () => onUpdateEstado(casillero.id_casillero, 'Ocupado')
+                        }, 'Ocupado'),
+                        React.createElement('button', {
+                            className: 'btn',
+                            onClick: () => onUpdateEstado(casillero.id_casillero, 'Averiado'),
+                            style: {backgroundColor: '#d97706'}
+                        }, 'Averiado')
+                    ),
+                    React.createElement('div', {style: {marginTop: '1rem'}},
+                        React.createElement('button', {className: 'btn btn-outline', onClick: onClose}, 'Cerrar')
+                    )
+                )
+            );
+        }
+
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+</body>
+</html>
